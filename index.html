@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carga de Google Fonts para tipografía de revista: Playfair Display (Serif Elegante) e Inter (Sans-serif Limpia) -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    
+    <!-- Configuración y personalización de Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    // Colores inspirados en cuero, tierra y elegancia oscura
+                    colors: {
+                        'background-dark': '#1F1A17', // Base oscura, casi negra con tono marrón
+                        'primary-brown': '#A0522D',  // Marrón siena oscuro, como cuero envejecido
+                        'accent-tan': '#F4EADF',     // Color crema/beige para texto y acentos
+                        'secondary-dark': '#2C2522', // Marrón oscuro para diferenciar secciones
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    transitionTimingFunction: {
+                        'ease-in-out-cubic': 'cubic-bezier(0.645, 0.045, 0.355, 1.000)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos generales para el fondo y la fluidez de la animación */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1F1A17;
+            color: #F4EADF;
+            scroll-behavior: smooth;
+        }
+        .header-img {
+            height: 70px;
+            width: 100%;
+            z-index: -1;
+            position: absolute;
+
+        }
+        /* Clase para la animación de despliegue del menú móvil */
+        .menu-transition-enter {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        .menu-transition-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 300ms, transform 300ms;
+        }
+        .menu-transition-leave-active {
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 300ms, transform 300ms;
+        }
+
+        /* Efecto de carta del producto */
+        .product-card {
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, opacity 0.5s;
+        }
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+        }
+        /* Estilo para la línea elegante del botón */
+        .btn-line::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 2px;
+            background: #A0522D;
+            transition: width 0.3s ease;
+        }
+        .btn-line:hover::after {
+            width: 100%;
+        }
+        /* Agrega esto a tu archivo CSS principal */
+        .whatsapp-button {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 50;
+            background-color: #25D366;
+            color: white;
+            border-radius: 50%;
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .whatsapp-button:hover {
+            background-color: #128C7E;
+            transform: scale(1.1);
+        }
+
+        .whatsapp-button svg {
+            transition: transform 0.3s ease;
+        }
+
+        .whatsapp-button:hover svg {
+            transform: rotate(12deg);
+        }
+
+        .whatsapp-tooltip {
+            position: absolute;
+            right: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #362B28;
+            color: #F4EADF;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .whatsapp-button:hover .whatsapp-tooltip {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Configuración de Firebase - Debe estar al principio del body en apps con persistencia -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Usar los valores globales inyectados por el entorno
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db = null;
+        let auth = null;
+        let userId = null;
+        
+        // Log para depuración
+        setLogLevel('Debug');
+
+        async function initFirebase() {
+            if (!firebaseConfig) {
+                console.error("Firebase config no está disponible. Las funciones de base de datos no estarán activas.");
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Autenticación usando el token personalizado o anónima
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Esperar a que el estado de autenticación se resuelva
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Usuario autenticado. ID:", userId);
+                        // Opcional: Guardar un registro de sesión
+                        saveSessionData(userId);
+                    } else {
+                        // Generar un ID temporal si no hay usuario (aunque signInAnonymously casi siempre proporciona uno)
+                        userId = crypto.randomUUID();
+                        console.log("No autenticado, usando ID temporal:", userId);
+                    }
+                    // Mostrar el ID del usuario en el HTML (MANDATORIO para apps multiusuario)
+                    document.getElementById('user-id-display').textContent = userId;
+                    document.getElementById('user-id-container').classList.remove('hidden');
+                });
+
+            } catch (error) {
+                console.error("Error al inicializar Firebase o al autenticar:", error.message);
+                // Si la autenticación falla, usar ID temporal
+                userId = crypto.randomUUID();
+                document.getElementById('user-id-display').textContent = "ERROR: " + error.message.substring(0, 30);
+                document.getElementById('user-id-container').classList.remove('hidden');
+            }
+        }
+
+        async function saveSessionData(uid) {
+            if (!db || !uid) return;
+            try {
+                const docRef = doc(db, `/artifacts/${appId}/users/${uid}/metadata/session_info`);
+                await setDoc(docRef, {
+                    last_login: new Date().toISOString(),
+                    app_version: 'v1.0.0',
+                    is_anonymous: auth.currentUser.isAnonymous,
+                }, { merge: true });
+                console.log("Datos de sesión guardados en Firestore.");
+            } catch (e) {
+                console.error("Error al guardar datos de sesión: ", e);
+            }
+        }
+
+        // Llamar a la función de inicialización
+        initFirebase();
+    </script>
+    
+    <!-- Contenedor del ID de Usuario (MANDATORIO) -->
+    <div id="user-id-container" class="fixed top-2 right-2 p-2 text-xs bg-secondary-dark text-accent-tan rounded-lg shadow-xl z-50 hidden">
+        ID de Sesión: <span id="user-id-display" class="font-mono">Cargando...</span>
+    </div>
+
+    <!-- Barra de Navegación (Header) -->
+    <header class="sticky top-0 z-40 bg-background-dark/95 backdrop-blur-sm shadow-lg border-b border-primary-brown/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Logo Elegante -->
+                <a href="#" class="text-3xl font-serif italic font-light tracking-widest text-accent-tan hover:text-primary-brown transition duration-300">
+                    BLACK HORSE 
+                </a>
+                
+
+                <!-- Menú de Escritorio (Desktop) -->
+                <nav class="hidden md:flex space-x-10 font-sans text-sm font-medium tracking-wider">
+                    <a href="#catalogo" class="text-accent-tan btn-line uppercase p-2">Catálogo</a>
+                    <a href="#historia" class="text-accent-tan btn-line uppercase p-2">Historia</a>
+                    <a href="#produccion" class="text-accent-tan btn-line uppercase p-2">Producción</a>
+                    <a href="#contacto" class="text-accent-tan btn-line uppercase p-2">Contacto</a>
+                </nav>
+
+                <!-- Botón de Menú Móvil (Hamburger) -->
+                <button id="menu-button" class="md:hidden p-2 rounded-lg text-accent-tan hover:bg-secondary-dark transition duration-200" aria-label="Toggle menu">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Menú Móvil Desplegable -->
+        <div id="mobile-menu" class="hidden md:hidden absolute w-full bg-secondary-dark/95 backdrop-blur-sm shadow-2xl p-4 border-t border-primary-brown transition-all duration-300 ease-in-out-cubic">
+            <div class="flex flex-col space-y-4 text-center text-lg font-serif">
+                <a href="#catalogo" class="text-accent-tan hover:text-primary-brown transition duration-200 p-2 border-b border-primary-brown/20" onclick="document.getElementById('menu-button').click()">Catálogo</a>
+                <a href="#historia" class="text-accent-tan hover:text-primary-brown transition duration-200 p-2 border-b border-primary-brown/20" onclick="document.getElementById('menu-button').click()">Historia</a>
+                <a href="#produccion" class="text-accent-tan hover:text-primary-brown transition duration-200 p-2 border-b border-primary-brown/20" onclick="document.getElementById('menu-button').click()">Producción</a>
+                <a href="#contacto" class="text-accent-tan hover:text-primary-brown transition duration-200 p-2" onclick="document.getElementById('menu-button').click()">Contacto</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <img src="img/header.png" alt="header" class="header-img">
+        <!-- SECCIÓN 1: HEADER/HERO - Impacto Visual -->
+        <section id="hero" class="relative h-[60vh] md:h-[80vh] flex items-center justify-center overflow-hidden">
+            <!-- Imagen de fondo que simula el cuero o el campo (placeholder) -->
+           
+            <!-- Overlay oscuro para alto contraste del texto -->
+            <div class="absolute inset-0 bg-background-dark opacity-40"></div>
+            
+            <div class="relative z-10 text-center p-6 max-w-4xl">
+                <h1 class="font-serif italic text-6xl md:text-8xl lg:text-9xl font-extralight tracking-tight text-accent-tan leading-tight animate-fadeInUp" style="animation-delay: 0.1s; opacity: 0; animation-fill-mode: forwards;">
+                    La Esencia del Cuero
+                </h1>
+                <p class="mt-4 md:mt-6 text-lg md:text-2xl font-sans tracking-widest uppercase text-primary-brown/90 animate-fadeInUp" style="animation-delay: 0.5s; opacity: 0; animation-fill-mode: forwards;">
+                    Tradición. Lujo. Durabilidad.
+                </p>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 2: HISTORIA / FILOSOFÍA -->
+        <section id="historia" class="py-20 md:py-32 px-4 sm:px-6 lg:px-8 bg-secondary-dark">
+            <div class="max-w-5xl mx-auto text-center">
+                <h2 class="font-serif text-4xl md:text-5xl text-primary-brown mb-8 relative inline-block">
+                    Nuestra Promesa
+                    <span class="absolute left-1/2 bottom-0 w-1/3 h-0.5 bg-accent-tan transform -translate-x-1/2"></span>
+                </h2>
+                <p class="text-xl md:text-2xl font-serif italic text-accent-tan/90 leading-relaxed mb-12">
+                    "Desde el origen más puro de la ganadería hasta el acabado más sutil. Una dedicación inquebrantable a la calidad."
+                </p>
+                
+                <div class="grid md:grid-cols-3 gap-8 mt-12">
+                    <div class="opacity-0 transform translate-y-4 animate-slideIn" style="animation-delay: 0.2s; animation-fill-mode: forwards;">
+                        <h3 class="text-2xl font-serif text-primary-brown mb-3">Materia Prima</h3>
+                        <p class="text-base text-accent-tan/70">Seleccionamos las pieles más finas, provenientes de prácticas éticas y sostenibles, asegurando una textura y resistencia incomparables.</p>
+                    </div>
+                    <div class="opacity-0 transform translate-y-4 animate-slideIn" style="animation-delay: 0.4s; animation-fill-mode: forwards;">
+                        <h3 class="text-2xl font-serif text-primary-brown mb-3">Artesanía</h3>
+                        <p class="text-base text-accent-tan/70">Cada pieza es tratada por maestros curtidores, utilizando técnicas ancestrales y tintes naturales para alcanzar la riqueza de nuestros tonos café y negro.</p>
+                    </div>
+                    <div class="opacity-0 transform translate-y-4 animate-slideIn" style="animation-delay: 0.6s; animation-fill-mode: forwards;">
+                        <h3 class="text-2xl font-serif text-primary-brown mb-3">Exclusividad</h3>
+                        <p class="text-base text-accent-tan/70">Nuestros productos son ediciones limitadas, diseñadas para el cliente que busca una pieza única con un legado que perdura en el tiempo.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 3: CATÁLOGO DE PRODUCTOS - Fluidez y Animación -->
+        <section id="catalogo" class="py-20 md:py-32 px-4 sm:px-6 lg:px-8 bg-background-dark">
+            <div class="max-w-7xl mx-auto">
+                <h2 class="text-center font-serif text-5xl md:text-6xl text-accent-tan mb-16">
+                    Colección Premier
+                </h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+                    <!-- Producto 1: Billetera de cuero oscuro -->
+                    <div class="product-card bg-secondary-dark rounded-lg overflow-hidden shadow-2xl opacity-0 animate-slideIn" style="animation-delay: 0.2s; animation-fill-mode: forwards;">
+                        <div class="relative overflow-hidden h-72">
+                            <img 
+                                src="img/montura.jpeg" 
+                                alt="[Imagen de una elegante billetera de cuero oscuro]" 
+                                class="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                                onerror="this.onerror=null; this.src='https://placehold.co/600x400/362B28/F4EADF?text=Billetera+Clásica';"
+                            >
+                        </div>
+                        <div class="p-6 text-center">
+                            
+                            <h3 class="text-2xl font-serif text-primary-brown mb-2">Montura</h3>
+                            <p class="text-accent-tan/80 mb-4">Montura profesional. Máxima calidad.</p>
+                            <a href="#" class="inline-block px-6 py-2 border border-primary-brown text-primary-brown hover:bg-primary-brown hover:text-secondary-dark transition duration-300 rounded-full text-sm uppercase tracking-wider">
+                                Ver Detalle
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Producto 2: Maletín de cuero marrón -->
+                    <div class="product-card bg-secondary-dark rounded-lg overflow-hidden shadow-2xl opacity-0 animate-slideIn" style="animation-delay: 0.4s; animation-fill-mode: forwards;">
+                        <div class="relative overflow-hidden h-72">
+                            <img 
+                                src="img/montura 2.jpeg " 
+                                alt="[Imagen de un maletín de cuero marrón clásico]" 
+                                class="w-full h-full  object-cover transition-transform duration-500 hover:scale-105"
+                                onerror="this.onerror=null; this.src='https://placehold.co/600x400/A0522D/F4EADF?text=Maletín+Ejecutivo';"
+                            >
+                        </div>
+                        <div class="p-6 text-center">
+                            <h3 class="text-2xl font-serif text-primary-brown mb-2">Montura</h3>
+                            <p class="text-accent-tan/80 mb-4">Piel de res, acabado natural. Para el ganadero en busqueda de calidad.</p>
+                            <a href="#" class="inline-block px-6 py-2 border border-primary-brown text-primary-brown hover:bg-primary-brown hover:text-secondary-dark transition duration-300 rounded-full text-sm uppercase tracking-wider">
+                                Ver Detalle
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Producto 3: Cinturón de piel exótica -->
+                    <div class="product-card bg-secondary-dark rounded-lg overflow-hidden shadow-2xl opacity-0 animate-slideIn" style="animation-delay: 0.6s; animation-fill-mode: forwards;">
+                        <div class="relative overflow-hidden h-72">
+                            <img 
+                                src="img/montura 3.jpeg" 
+                                alt="[Imagen de un cinturón de piel con textura exótica]" 
+                                class="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                                onerror="this.onerror=null; this.src='https://placehold.co/600x400/5C4A42/F4EADF?text=Cinturón+Exótico';"
+                            >
+                        </div>
+                        <div class="p-6 text-center">
+                            <h3 class="text-2xl font-serif text-primary-brown mb-2">Cinturón Savannah</h3>
+                            <p class="text-accent-tan/80 mb-4">Grabado de cocodrilo, hebilla de bronce pulido.</p>
+                            <a href="#" class="inline-block px-6 py-2 border border-primary-brown text-primary-brown hover:bg-primary-brown hover:text-secondary-dark transition duration-300 rounded-full text-sm uppercase tracking-wider">
+                                Ver Detalle
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-20 opacity-0 transform translate-y-4 animate-slideIn" style="animation-delay: 0.8s; animation-fill-mode: forwards;">
+                    <a href="#" class="inline-block text-xl font-serif text-accent-tan hover:text-primary-brown transition duration-300 btn-line uppercase tracking-widest">
+                        Explorar Colección Completa &rarr;
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 4: CALL TO ACTION / FORMULARIO DE CONTACTO -->
+        <section id="contacto" class="py-20 md:py-32 px-4 sm:px-6 lg:px-8 bg-secondary-dark">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-center font-serif text-5xl md:text-6xl text-accent-tan mb-4">
+                    Contacto Exclusivo
+                </h2>
+                <p class="text-center text-xl font-serif italic text-primary-brown mb-12">
+                    Déjenos un mensaje para solicitar una cotización o el catálogo de distribuidores.
+                </p>
+
+                <!-- Formulario de Contacto (Estructura para futura conexión a Firestore) -->
+                <form id="contact-form" class="space-y-6">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-accent-tan/90 mb-2">Nombre Completo</label>
+                        <input type="text" id="name" name="name" required
+                               class="w-full px-4 py-3 bg-background-dark border border-primary-brown focus:border-accent-tan focus:ring focus:ring-primary-brown/50 rounded-lg text-accent-tan transition duration-200 shadow-inner placeholder-accent-tan/50">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-accent-tan/90 mb-2">Correo Electrónico</label>
+                        <input type="email" id="email" name="email" required
+                               class="w-full px-4 py-3 bg-background-dark border border-primary-brown focus:border-accent-tan focus:ring focus:ring-primary-brown/50 rounded-lg text-accent-tan transition duration-200 shadow-inner placeholder-accent-tan/50">
+                    </div>
+                    <div>
+                        <label for="message" class="block text-sm font-medium text-accent-tan/90 mb-2">Mensaje / Consulta</label>
+                        <textarea id="message" name="message" rows="4" required
+                                  class="w-full px-4 py-3 bg-background-dark border border-primary-brown focus:border-accent-tan focus:ring focus:ring-primary-brown/50 rounded-lg text-accent-tan transition duration-200 shadow-inner placeholder-accent-tan/50"></textarea>
+                    </div>
+                    
+                    <button type="submit"
+                            class="w-full py-3 bg-primary-brown text-background-dark font-sans font-semibold uppercase tracking-widest rounded-lg shadow-lg hover:bg-primary-brown/80 transition duration-300 transform hover:scale-[1.01]">
+                        Enviar Solicitud
+                    </button>
+                    
+                    <p id="form-message" class="text-center pt-4 text-sm font-serif italic text-accent-tan/70 hidden">
+                        <!-- Mensaje de confirmación/error se mostrará aquí -->
+                    </p>
+                </form>
+            </div>
+        </section>
+    </main>
+    <!-- Botón flotante de WhatsApp -->
+    <a 
+        href="https://wa.me/59169268351?text=Hola,%20me%20interesa%20saber%20más%20sobre%20sus%20productos%20de%20cuero" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        class="fixed bottom-6 right-6 z-50 bg-green-600 hover:bg-green-700 text-white rounded-full p-4 shadow-2xl transition-all duration-300 transform hover:scale-110 group"
+        aria-label="Contactar por WhatsApp"
+    >
+        <!-- Ícono de WhatsApp -->
+        <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="28" 
+            height="28" 
+            viewBox="0 0 24 24" 
+            fill="currentColor"
+            class="group-hover:rotate-12 transition-transform duration-300"
+        >
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.76.982.998-3.675-.236-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.9 6.994c-.004 5.45-4.438 9.88-9.888 9.88m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.333.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.333 11.893-11.893 0-3.18-1.24-6.162-3.495-8.411"/>
+        </svg>
+        
+        <!-- Burbuja de texto (opcional, aparece al hover) -->
+        <span class="absolute right-16 bottom-1/2 transform translate-y-1/2 bg-secondary-dark text-accent-tan px-4 py-2 rounded-lg shadow-lg text-sm font-sans uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">
+            ¿Necesitas ayuda?
+        </span>
+    </a>
+    <!-- Footer Elegante -->
+    <footer class="bg-background-dark border-t border-primary-brown/30 py-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-accent-tan/70 text-sm">
+            <p>&copy; 2026 Black Horse. Todos los derechos reservados. | Arte en Cuero de Generación en Generación.</p>
+            <div class="mt-4 space-x-4">
+                <a href="#" class="hover:text-primary-brown transition duration-200">Privacidad</a>
+                <a href="#" class="hover:text-primary-brown transition duration-200">Términos</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts de Interacción -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const menuButton = document.getElementById('menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const form = document.getElementById('contact-form');
+            const formMessage = document.getElementById('form-message');
+            
+            // 1. Lógica del Menú Móvil con Transiciones
+            menuButton.addEventListener('click', () => {
+                const isHidden = mobileMenu.classList.contains('hidden');
+                
+                if (isHidden) {
+                    mobileMenu.classList.remove('hidden');
+                    mobileMenu.classList.add('menu-transition-enter');
+                    setTimeout(() => {
+                        mobileMenu.classList.remove('menu-transition-enter');
+                        mobileMenu.classList.add('menu-transition-enter-active');
+                    }, 10); // Pequeño retraso para que la transición funcione
+                } else {
+                    mobileMenu.classList.add('menu-transition-leave-active');
+                    mobileMenu.classList.remove('menu-transition-enter-active');
+                    setTimeout(() => {
+                        mobileMenu.classList.add('hidden');
+                        mobileMenu.classList.remove('menu-transition-leave-active');
+                    }, 300); // 300ms debe coincidir con la duración de la transición CSS
+                }
+            });
+
+            // 2. Lógica de Envío de Formulario (Simulación)
+            // NOTA: Para la persistencia real, esta lógica debería usar las funciones de Firestore (addDoc/setDoc)
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const name = document.getElementById('name').value;
+                const email = document.getElementById('email').value;
+                const message = document.getElementById('message').value;
+
+                formMessage.classList.remove('hidden');
+                formMessage.textContent = 'Enviando solicitud...';
+                formMessage.classList.remove('text-red-400', 'text-green-400');
+                formMessage.classList.add('text-primary-brown');
+                
+                // Simulación de envío a un servidor/Firestore
+                try {
+                    // Aquí iría la lógica de addDoc(collection(db, ...), { name, email, message, ... })
+                    // await saveContactToFirestore({ name, email, message });
+                    
+                    // Simulación de espera
+                    await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+                    formMessage.textContent = `¡Gracias, ${name}! Tu consulta ha sido recibida. Te contactaremos pronto.`;
+                    formMessage.classList.remove('text-primary-brown');
+                    formMessage.classList.add('text-green-400');
+                    form.reset(); // Limpiar el formulario
+
+                } catch (error) {
+                    console.error("Error en el envío simulado (o real de Firestore):", error);
+                    formMessage.textContent = 'Error al enviar la solicitud. Por favor, inténtalo de nuevo más tarde.';
+                    formMessage.classList.remove('text-primary-brown');
+                    formMessage.classList.add('text-red-400');
+                }
+            });
+            
+            // 3. Animación de "Slide In" al hacer scroll
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('animate-slideIn-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, {
+                rootMargin: '0px',
+                threshold: 0.1 // Activación cuando el 10% del elemento es visible
+            });
+
+            // Definición de keyframes de animación para slideIn
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes fadeInUp {
+                    0% { opacity: 0; transform: translateY(20px); }
+                    100% { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fadeInUp {
+                    animation-name: fadeInUp;
+                    animation-duration: 1s;
+                    animation-timing-function: ease-out;
+                }
+                
+                @keyframes slideIn {
+                    0% { opacity: 0; transform: translateY(20px); }
+                    100% { opacity: 1; transform: translateY(0); }
+                }
+                .animate-slideIn {
+                    opacity: 0;
+                    transition: all 0.5s ease-out;
+                }
+                .animate-slideIn-visible {
+                    animation-name: slideIn;
+                    animation-duration: 0.8s;
+                    animation-fill-mode: forwards;
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Observar elementos que queremos que se animen al entrar en el viewport
+            document.querySelectorAll('.animate-slideIn, .product-card').forEach(el => {
+                observer.observe(el);
+            });
+            
+        });
+    </script>
+    <!-- Imports de Firebase (repetidos en caso de que el entorno no cargue el primer script module) -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" defer></script>
+</body>
+</html>

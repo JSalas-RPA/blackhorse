@@ -1,0 +1,16 @@
+proyecto-black-horse/
+│
+├── index.html          # Landing page principal
+├── catalogo.html       # Página de catálogo completo
+├── app.js             # Lógica JavaScript principal
+├── styles.css         # Estilos compartidos
+├── firebase-config.js # Configuración de Firebase (opcional)
+│
+├── img/               # Carpeta de imágenes
+│   ├── monturas/
+│   ├── mantas/
+│   ├── jaquimas/
+│   ├── pecheros/
+│   └── accesorios/
+│
+└── README.md          # Documentación
